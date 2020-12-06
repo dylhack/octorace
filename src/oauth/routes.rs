@@ -13,6 +13,7 @@ pub fn oauth_main(client: State<OauthClient>) -> Redirect {
         .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("identify".to_string()))
         .add_scope(Scope::new("connections".to_string()))
+        .add_scope(Scope::new("guilds".to_string()))
         .url();
 
     Redirect::to(authorize_url.to_string())
@@ -36,21 +37,11 @@ pub fn oauth_callback(
             .path("/")
             .secure(true)
             .finish();
-
         cookies.add(cookie);
-        let res = oauth_request(
-            "users/@me/connections",
-            token.access_token().secret().clone(),
-        )
-        .unwrap();
-        format!(
-            "{}\nCookie: {}",
-            res.text().unwrap(),
-            cookies.get("discord_token").unwrap().value()
-        );
+
         Redirect::to("/")
     } else {
         "Something went wrong..".to_string();
-        Redirect::to("/")
+        Redirect::to("")
     };
 }

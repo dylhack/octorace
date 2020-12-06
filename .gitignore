@@ -1,2 +1,4 @@
 /target
 .idea/
+web/node_modules
+static
