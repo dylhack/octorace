@@ -1,14 +1,15 @@
+pub mod guilds;
 mod models;
 pub mod user;
-pub mod guilds;
 
 use rocket::http::ContentType;
-use rocket::http::{Status};
+use rocket::http::Status;
 use rocket::request::Request;
 use rocket::response;
-use rocket::response::{Responder, Response};
+use rocket::response::{Response};
 use rocket_contrib::json;
 use rocket_contrib::json::JsonValue;
+use rocket::response::Responder;
 
 #[derive(Debug)]
 pub struct ApiResponse {
@@ -16,9 +17,9 @@ pub struct ApiResponse {
     status: Status,
 }
 
-impl<'r> Responder<'r> for ApiResponse {
-    fn respond_to(self, req: &Request) -> response::Result<'r> {
-        Response::build_from(self.json.respond_to(&req).unwrap())
+impl<'r> Responder<'r, 'static> for ApiResponse {
+    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
+        Response::build_from(self.json.respond_to(req).unwrap())
             .status(self.status)
             .header(ContentType::JSON)
             .ok()

@@ -2,10 +2,10 @@ pub mod routes;
 
 use oauth2::basic::{BasicClient, BasicErrorResponseType, BasicTokenType};
 use oauth2::{
-    AuthUrl, ClientId, ClientSecret, EmptyExtraTokenFields, RedirectUrl,
-    StandardErrorResponse, StandardTokenResponse, TokenUrl,
+    AuthUrl, ClientId, ClientSecret, EmptyExtraTokenFields, RedirectUrl, StandardErrorResponse,
+    StandardTokenResponse, TokenUrl,
 };
-use reqwest::blocking;
+use reqwest::Client;
 use reqwest::header::AUTHORIZATION;
 
 type OauthClient = oauth2::Client<
@@ -37,13 +37,14 @@ pub fn create_oauth_client() -> OauthClient {
     client
 }
 
-pub fn oauth_request(url: &str, token: String) -> Option<blocking::Response> {
+pub async fn oauth_request(url: &str, token: String) -> Option<reqwest::Response> {
     //  -> Result<Response, Box<dyn std::error::Error>>
-    let client = blocking::Client::new();
+    let client = Client::new();
     match client
         .get(format!("https://discordapp.com/api/{}", url).as_str())
         .header(AUTHORIZATION, format!("Bearer {}", token))
         .send()
+        .await
     {
         Ok(res) => Some(res),
         Err(_) => None,

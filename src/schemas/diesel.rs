@@ -21,6 +21,5 @@ table! {
     }
 }
 
-
 allow_tables_to_appear_in_same_query!(users, connections);
 joinable!(connections -> users (discord_id));

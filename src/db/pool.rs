@@ -11,8 +11,10 @@ pub fn pool() -> Pool {
 }
 
 fn database_url() -> String {
-    env::var("DATABASE_URL")
-        .unwrap_or("postgres://postgres:password123@localhost/postgres?options=-c search_path%3Doctorace".to_string())
+    env::var("DATABASE_URL").unwrap_or(
+        "postgres://postgres:password123@localhost/postgres?options=-c search_path%3Doctorace"
+            .to_string(),
+    )
 }
 
 pub fn pg_connection() -> PgConnection {

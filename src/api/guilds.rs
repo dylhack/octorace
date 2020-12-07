@@ -1,20 +1,20 @@
-use rocket::get;
-use rocket::http::{Cookies, Status};
-use crate::db::guard::DbConn;
-use crate::models::ApiGuild;
-use crate::api::{ApiResponse, json};
-use diesel::{PgConnection, QueryDsl, ExpressionMethods};
 use crate::api::models::DiscordGuild;
+use crate::api::{json, ApiResponse};
+use crate::db::guard::DbConn;
+use crate::diesel::RunQueryDsl;
+use crate::models::ApiGuild;
 use crate::oauth::oauth_request;
 use crate::schemas::diesel::guilds;
-use crate::diesel::RunQueryDsl;
+use diesel::{ExpressionMethods, PgConnection, QueryDsl};
+use rocket::get;
+use rocket::http::{CookieJar, Status};
 use std::thread;
 
 #[get("/guilds")]
-pub fn get_guilds(cookies: Cookies, db: DbConn) -> ApiResponse {
-    let token = cookies.get("discord_token");
+pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn) -> ApiResponse {
+    let token = jar.get("discord_token");
     return match token {
-        Some(token) => match get_api_guilds(token.value().to_string(), &db) {
+        Some(token) => match get_api_guilds(token.value().to_string(), &db).await {
             Some(guilds) => ApiResponse {
                 json: json!(&guilds),
                 status: Status::Ok,
@@ -31,11 +31,20 @@ pub fn get_guilds(cookies: Cookies, db: DbConn) -> ApiResponse {
     };
 }
 
-pub fn get_api_guilds(token: String, db: &PgConnection) -> Option<Vec<ApiGuild>> {
-    let discord_guilds: Vec<DiscordGuild> = oauth_request("users/@me/guilds", token.clone()).unwrap().json().unwrap();
+pub async fn get_api_guilds(token: String, db: &DbConn) -> Option<Vec<ApiGuild>> {
+    let discord_guilds: Vec<DiscordGuild> = oauth_request("users/@me/guilds", token.clone())
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     let mut api_guilds: Vec<ApiGuild> = vec![];
     for guild in discord_guilds {
-        let res: i64 = guilds::table.filter(guilds::guild_id.eq(guild.id.parse::<i64>().unwrap())).count().get_result(db).unwrap();
+        let res: i64 = guilds::table
+            .filter(guilds::guild_id.eq(guild.id.parse::<i64>().unwrap()))
+            .count()
+            .get_result(&db.0)
+            .unwrap();
         if res > 1 {
             let icon = {
                 if let Some(icon) = guild.icon {
@@ -48,7 +57,7 @@ pub fn get_api_guilds(token: String, db: &PgConnection) -> Option<Vec<ApiGuild>>
                 name: guild.name,
                 id: guild.id.parse().unwrap(),
                 icon_url: icon,
-                profiles: res
+                profiles: res,
             })
         }
     }

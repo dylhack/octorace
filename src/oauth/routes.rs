@@ -1,10 +1,11 @@
-use crate::oauth::{OauthClient};
-use oauth2::reqwest::http_client;
+use crate::oauth::OauthClient;
+use oauth2::reqwest::{http_client, async_http_client};
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use rocket::get;
-use rocket::http::{Cookie, Cookies};
+use rocket::http::{Cookie, CookieJar};
 use rocket::response::Redirect;
 use rocket::State;
+use tokio::task::spawn_blocking;
 
 #[get("/")]
 pub fn oauth_main(client: State<OauthClient>) -> Redirect {
@@ -21,15 +22,15 @@ pub fn oauth_main(client: State<OauthClient>) -> Redirect {
 
 #[allow(unused_variables)]
 #[get("/callback?<code>&<state>")]
-pub fn oauth_callback(
-    client: State<OauthClient>,
+pub async fn oauth_callback(
+    client: State<'_, OauthClient>,
     code: String,
     state: String,
-    mut cookies: Cookies,
+    jar: &CookieJar<'_>,
 ) -> Redirect {
     let code = AuthorizationCode::new(code);
-
-    let token_res = client.exchange_code(code).request(http_client);
+    let token_res = client.exchange_code(code)
+        .request_async(async_http_client).await;
 
     return if let Ok(token) = token_res {
         let discord_token = token.access_token();
@@ -38,7 +39,8 @@ pub fn oauth_callback(
             .path("/")
             .secure(true)
             .finish();
-        cookies.add(cookie);
+
+        jar.add(cookie);
 
         Redirect::to("/")
     } else {

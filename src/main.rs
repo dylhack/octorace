@@ -1,9 +1,10 @@
-#![feature(decl_macro)]
-
+//noinspection RsMainFunctionNotFound
 #[macro_use]
 extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
+#[macro_use]
+extern crate rocket;
 
 mod api;
 mod db;
@@ -12,8 +13,8 @@ mod models;
 mod oauth;
 mod schemas;
 
-use crate::api::user::*;
 use crate::api::guilds::*;
+use crate::api::user::*;
 use crate::oauth::create_oauth_client;
 use crate::oauth::routes::*;
 
@@ -22,8 +23,8 @@ use rocket_contrib::serve::StaticFiles;
 
 embed_migrations!("migrations");
 
-#[tokio::main]
-async fn main() {
+#[launch]
+fn rocket() -> rocket::Rocket {
     let oauth_client = create_oauth_client();
 
     embedded_migrations::run(&db::pool::pg_connection()).expect("expected successful migration");
@@ -34,5 +35,4 @@ async fn main() {
         // .mount("/", StaticFiles::from(crate_relative!("/public")))
         .mount("/oauth", routes![oauth_main, oauth_callback])
         .mount("/api", routes![get_user, get_guilds])
-        .launch();
 }
