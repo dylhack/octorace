@@ -19,7 +19,7 @@ use crate::oauth::create_oauth_client;
 use crate::oauth::routes::*;
 
 use rocket::routes;
-use rocket_contrib::serve::StaticFiles;
+// use rocket_contrib::serve::StaticFiles;
 
 embed_migrations!("migrations");
 

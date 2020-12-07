@@ -15,7 +15,6 @@ unsafe impl Send for DbConn {}
 
 unsafe impl Sync for DbConn {}
 
-
 #[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for DbConn {
     type Error = ();

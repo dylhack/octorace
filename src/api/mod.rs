@@ -6,10 +6,10 @@ use rocket::http::ContentType;
 use rocket::http::Status;
 use rocket::request::Request;
 use rocket::response;
-use rocket::response::{Response};
+use rocket::response::Responder;
+use rocket::response::Response;
 use rocket_contrib::json;
 use rocket_contrib::json::JsonValue;
-use rocket::response::Responder;
 
 #[derive(Debug)]
 pub struct ApiResponse {

@@ -1,11 +1,10 @@
 use crate::oauth::OauthClient;
-use oauth2::reqwest::{http_client, async_http_client};
+use oauth2::reqwest::{async_http_client};
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use rocket::get;
 use rocket::http::{Cookie, CookieJar};
 use rocket::response::Redirect;
 use rocket::State;
-use tokio::task::spawn_blocking;
 
 #[get("/")]
 pub fn oauth_main(client: State<OauthClient>) -> Redirect {
@@ -29,8 +28,10 @@ pub async fn oauth_callback(
     jar: &CookieJar<'_>,
 ) -> Redirect {
     let code = AuthorizationCode::new(code);
-    let token_res = client.exchange_code(code)
-        .request_async(async_http_client).await;
+    let token_res = client
+        .exchange_code(code)
+        .request_async(async_http_client)
+        .await;
 
     return if let Ok(token) = token_res {
         let discord_token = token.access_token();

@@ -5,10 +5,9 @@ use crate::diesel::RunQueryDsl;
 use crate::models::ApiGuild;
 use crate::oauth::oauth_request;
 use crate::schemas::diesel::guilds;
-use diesel::{ExpressionMethods, PgConnection, QueryDsl};
+use diesel::{ExpressionMethods, QueryDsl};
 use rocket::get;
 use rocket::http::{CookieJar, Status};
-use std::thread;
 
 #[get("/guilds")]
 pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn) -> ApiResponse {

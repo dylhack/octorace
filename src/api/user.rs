@@ -78,7 +78,7 @@ pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
             }
         }
 
-        if github == "" {
+        if github.is_empty() {
             return None;
         }
 
@@ -111,7 +111,7 @@ pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
                 "https://cdn.discordapp.com/avatars/{}/{}.png",
                 me.id, me.avatar
             ),
-            contributions: db_user.contributions.clone(),
+            contributions: db_user.contributions,
         })
     } else {
         None
