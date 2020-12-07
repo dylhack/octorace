@@ -4,14 +4,9 @@ RUN USER=root cargo new --bin octorace
 
 WORKDIR ./octorace
 COPY ./Cargo.toml ./Cargo.toml
-RUN cargo build --release
 RUN rm src/*.rs
 
 ADD . ./
-
-ENV DATABASE_URL=postgres://octorace:password@localhost/postgres
-
-RUN rm ./target/release/deps/octorace*
 
 RUN apt-get update
 RUN apt-get install -y nodejs
@@ -20,6 +15,8 @@ RUN npm install npm@latest -g
 
 RUN npm --prefix ./web install
 RUN npm run --prefix ./web deploy
+
+ENV DATABASE_URL=postgres://octorace:password@database:5432/octorace
 
 EXPOSE 8000
 

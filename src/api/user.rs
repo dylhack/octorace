@@ -11,7 +11,7 @@ use chrono::{Duration, Utc};
 use diesel::{
     BoolExpressionMethods, ExpressionMethods, JoinOnDsl, PgConnection, QueryDsl, RunQueryDsl,
 };
-use reqwest::blocking;
+use reqwest::{get};
 use rocket::get;
 use rocket::http::{CookieJar, Status};
 
@@ -82,7 +82,7 @@ pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
             return None;
         }
 
-        let contribs = get_contributions(github.clone());
+        let contribs = get_contributions(github.clone()).await;
 
         make_new_user(
             UserJoined {
@@ -118,12 +118,15 @@ pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
     }
 }
 
-pub fn get_contributions(username: String) -> i32 {
+pub async fn get_contributions(username: String) -> i32 {
     let activity: ApiActivity =
-        blocking::get(format!("https://github-contributions.now.sh/api/v1/{}", username).as_str())
+        get(format!("https://github-contributions.now.sh/api/v1/{}", username).as_str())
+            .await
             .unwrap()
             .json()
+            .await
             .unwrap();
+
     activity.years.last().unwrap().total
 }
 

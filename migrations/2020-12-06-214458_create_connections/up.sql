@@ -1,4 +1,6 @@
 -- Your SQL goes here
+create schema if not exists octorace;
+
 create table if not exists octorace.connections
 (
     discord_id bigint not null

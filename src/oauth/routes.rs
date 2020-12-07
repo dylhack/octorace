@@ -10,7 +10,6 @@ use rocket::State;
 pub fn oauth_main(client: State<OauthClient>) -> Redirect {
     let (authorize_url, _csrf_state) = client
         .authorize_url(CsrfToken::new_random)
-        .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("identify".to_string()))
         .add_scope(Scope::new("connections".to_string()))
         .add_scope(Scope::new("guilds".to_string()))

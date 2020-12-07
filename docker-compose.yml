@@ -1,16 +1,18 @@
 version: '3'
 services:
+  database:
+    image: "postgres:13"
+    environment:
+      - POSTGRES_USER=octorace
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=octorace
+    volumes:
+      - postgres:/var/lib/postgresql/data/
+
   server:
     build: .
     ports:
     - "8000:8000"
-  database:
-    image: "postgres"
-    env_file:
-      - database.env
-    volumes:
-    - postgres:/var/lib/postgresql/data/
-
 
 volumes:
   postgres:

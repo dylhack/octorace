@@ -19,7 +19,7 @@ use crate::oauth::create_oauth_client;
 use crate::oauth::routes::*;
 
 use rocket::routes;
-// use rocket_contrib::serve::StaticFiles;
+use rocket_contrib::serve::StaticFiles;
 
 embed_migrations!("migrations");
 
@@ -28,11 +28,12 @@ fn rocket() -> rocket::Rocket {
     let oauth_client = create_oauth_client();
 
     embedded_migrations::run(&db::pool::pg_connection()).expect("expected successful migration");
+    println!("Starting server..");
 
     rocket::ignite()
         .manage(oauth_client)
         .manage(db::pool::pool())
-        // .mount("/", StaticFiles::from(crate_relative!("/public")))
+        .mount("/", StaticFiles::from(crate_relative!("/public")))
         .mount("/oauth", routes![oauth_main, oauth_callback])
         .mount("/api", routes![get_user, get_guilds])
 }

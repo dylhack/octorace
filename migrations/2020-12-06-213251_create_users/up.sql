@@ -1,4 +1,6 @@
 -- Your SQL goes here
+create schema if not exists octorace;
+
 create table if not exists octorace.users
 (
     discord_id bigint not null,
@@ -9,7 +11,9 @@ create table if not exists octorace.users
 create unique index if not exists users_discord_id_uindex
     on octorace.users (discord_id);
 
+alter table octorace.users drop constraint if exists users_pk;
+
 alter table octorace.users
-    add constraint table_name_pk
+    add constraint users_pk
         primary key (discord_id);
 

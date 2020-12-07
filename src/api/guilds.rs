@@ -19,7 +19,7 @@ pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn) -> ApiResponse {
                 status: Status::Ok,
             },
             None => ApiResponse {
-                json: json!({"Error": "User does not have github connected"}),
+                json: json!({"Error": "User is not in any valid guilds"}),
                 status: Status::BadRequest,
             },
         },
