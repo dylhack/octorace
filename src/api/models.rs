@@ -15,3 +15,10 @@ pub struct DiscordUser {
     pub(crate) discriminator: String,
     pub(crate) email: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct DiscordGuild {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) icon: Option<String>,
+}

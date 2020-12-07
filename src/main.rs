@@ -6,7 +6,6 @@ extern crate diesel;
 extern crate diesel_migrations;
 
 mod api;
-mod bot;
 mod db;
 mod macros;
 mod models;
@@ -14,7 +13,7 @@ mod oauth;
 mod schemas;
 
 use crate::api::user::*;
-use crate::bot::start_bot;
+use crate::api::guilds::*;
 use crate::oauth::create_oauth_client;
 use crate::oauth::routes::*;
 
@@ -27,17 +26,13 @@ embed_migrations!("migrations");
 async fn main() {
     let oauth_client = create_oauth_client();
 
-    tokio::spawn(async move {
-        start_bot().await;
-    });
-
     embedded_migrations::run(&db::pool::pg_connection()).expect("expected successful migration");
 
     rocket::ignite()
         .manage(oauth_client)
         .manage(db::pool::pool())
-        .mount("/", StaticFiles::from(crate_relative!("/public")))
+        // .mount("/", StaticFiles::from(crate_relative!("/public")))
         .mount("/oauth", routes![oauth_main, oauth_callback])
-        .mount("/api", routes![get_user, get_user_contributions])
+        .mount("/api", routes![get_user, get_guilds])
         .launch();
 }

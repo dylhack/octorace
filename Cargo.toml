@@ -24,11 +24,6 @@ features = ["full"]
 version = "0.10.9"
 features = ["json"]
 
-[dependencies.serenity]
-version = "0.9.2"
-default-features = false
-features = ["client", "gateway", "rustls_backend", "model", "cache"]
-
 [dependencies.serde]
 version = "1.0.99"
 

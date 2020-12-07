@@ -1,5 +1,6 @@
 mod models;
 pub mod user;
+pub mod guilds;
 
 use rocket::http::ContentType;
 use rocket::http::{Status};

@@ -40,22 +40,6 @@ pub fn get_user(cookies: Cookies, db: DbConn) -> ApiResponse {
     };
 }
 
-#[get("/user/contributions?<user_id>")]
-pub fn get_user_contributions(user_id: i64, db: DbConn) -> String {
-    let time = Utc::now() + Duration::minutes(5);
-    let new_user = NewUser {
-        discord_id: user_id,
-        contributions: 0,
-        expires: time.naive_utc(),
-    };
-
-    diesel::insert_into(users::table)
-        .values(&new_user)
-        .execute(&db.0)
-        .expect("Unable to insert");
-    "Hello, World".to_string()
-}
-
 pub fn get_api_user(token: String, db: &PgConnection) -> Option<ApiProfile> {
     let me: DiscordUser = oauth_request("users/@me", token.clone())
         .unwrap()
@@ -70,6 +54,7 @@ pub fn get_api_user(token: String, db: &PgConnection) -> Option<ApiProfile> {
         .unwrap();
 
     if data.is_empty() {
+
         let mut github: String = "".to_string();
         let connections: Vec<ApiUserConnection> = oauth_request("users/@me/connections", token.clone())
             .unwrap()
@@ -87,19 +72,14 @@ pub fn get_api_user(token: String, db: &PgConnection) -> Option<ApiProfile> {
             return None;
         }
 
-        let activity: ApiActivity =
-            blocking::get(format!("https://github-contributions.now.sh/api/v1/{}", github).as_str())
-                .unwrap()
-                .json()
-                .unwrap();
+        let contribs = get_contributions(github.clone());
 
         make_new_user(UserJoined {
             discord_id: me.id.parse().unwrap(),
-            contributions: activity.years.last().unwrap().total,
+            contributions: contribs,
             github: github.clone(),
         }, &db);
 
-        println!("Non cache..");
         Some(ApiProfile {
             tag: format!("{}#{}", me.username, me.discriminator),
             github: github.clone(),
@@ -107,11 +87,9 @@ pub fn get_api_user(token: String, db: &PgConnection) -> Option<ApiProfile> {
                 "https://cdn.discordapp.com/avatars/{}/{}.png",
                 me.id, me.avatar
             ),
-            contributions: activity.years.last().unwrap().total
+            contributions: contribs
         })
-    } else {
-        println!("Cache..");
-        let db_user = data.get(0).unwrap();
+    } else if let Some(db_user) = data.get(0)  {
         Some(ApiProfile {
             tag: format!("{}#{}", me.username, me.discriminator),
             github: db_user.github.clone(),
@@ -121,7 +99,18 @@ pub fn get_api_user(token: String, db: &PgConnection) -> Option<ApiProfile> {
             ),
             contributions: db_user.contributions.clone()
         })
+    } else {
+        None
     }
+}
+
+pub fn get_contributions(username: String) -> i32 {
+    let activity: ApiActivity =
+        blocking::get(format!("https://github-contributions.now.sh/api/v1/{}", username).as_str())
+            .unwrap()
+            .json()
+            .unwrap();
+    activity.years.last().unwrap().total
 }
 
 pub fn make_new_user(user: UserJoined, db: &PgConnection) {
@@ -149,3 +138,4 @@ pub fn make_new_user(user: UserJoined, db: &PgConnection) {
         .execute(db)
         .expect("Unable to insert");
 }
+
