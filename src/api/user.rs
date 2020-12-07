@@ -1,19 +1,29 @@
-use crate::api::models::{ApiUser, ApiUserConnection};
+use crate::api::models::{ApiUserConnection, DiscordUser};
 use crate::api::{json, ApiResponse};
-use crate::models::{Activity, User};
+use crate::db::guard::DbConn;
+use crate::models::{ApiActivity, ApiProfile};
 use crate::oauth::oauth_request;
+use chrono::{Duration, Utc};
+use diesel::{RunQueryDsl, PgConnection, QueryDsl, ExpressionMethods, JoinOnDsl, BoolExpressionMethods};
 use reqwest::blocking;
 use rocket::get;
 use rocket::http::{Cookies, Status};
-use rocket_contrib::json::JsonValue;
-use serde::Serialize;
-use std::fmt;
+use crate::schemas::{NewUser, NewConnection};
+use crate::schemas::diesel::users;
+use crate::schemas::diesel::connections;
+
+#[derive(Debug, Queryable)]
+pub struct UserJoined {
+    pub discord_id: i64,
+    pub contributions: i32,
+    pub github: String
+}
 
 #[get("/user")]
-pub fn get_user(cookies: Cookies) -> ApiResponse {
+pub fn get_user(cookies: Cookies, db: DbConn) -> ApiResponse {
     let token = cookies.get("discord_token");
     return match token {
-        Some(token) => match get_api_user(token.value().to_string()) {
+        Some(token) => match get_api_user(token.value().to_string(), &db) {
             Some(user) => ApiResponse {
                 json: json!(&user),
                 status: Status::Ok,
@@ -30,59 +40,112 @@ pub fn get_user(cookies: Cookies) -> ApiResponse {
     };
 }
 
-#[get("/user/contributions?<username>")]
-pub fn get_user_contributions(username: String) -> ApiResponse {
-    let res =
-        blocking::get(format!("https://github-contributions.now.sh/api/v1/{}", username).as_str());
-    return match res {
-        Ok(res) => ApiResponse {
-            json: res.json().unwrap(),
-            status: Status::Ok,
-        },
-        Err(_) => ApiResponse {
-            json: json!({"Error": "Bad request"}),
-            status: Status::BadRequest,
-        },
+#[get("/user/contributions?<user_id>")]
+pub fn get_user_contributions(user_id: i64, db: DbConn) -> String {
+    let time = Utc::now() + Duration::minutes(5);
+    let new_user = NewUser {
+        discord_id: user_id,
+        contributions: 0,
+        expires: time.naive_utc(),
     };
+
+    diesel::insert_into(users::table)
+        .values(&new_user)
+        .execute(&db.0)
+        .expect("Unable to insert");
+    "Hello, World".to_string()
 }
 
-pub fn get_api_user(token: String) -> Option<User> {
-    let me: ApiUser = oauth_request("users/@me", token.clone())
+pub fn get_api_user(token: String, db: &PgConnection) -> Option<ApiProfile> {
+    let me: DiscordUser = oauth_request("users/@me", token.clone())
         .unwrap()
         .json()
         .unwrap();
 
-    let mut github: String = "".to_string();
-    let connections: Vec<ApiUserConnection> = oauth_request("users/@me/connections", token.clone())
-        .unwrap()
-        .json()
+    let data: Vec<UserJoined> = users::table
+        .inner_join(connections::table.on(users::discord_id.eq(connections::discord_id)
+            .and(users::discord_id.eq(me.id.parse::<i64>().unwrap()))))
+        .select((users::discord_id, users::contributions, connections::github))
+        .load(db)
         .unwrap();
 
-    for (conn) in connections {
-        if conn.conn_type.to_lowercase() == "github" {
-            github = conn.name;
-            break;
-        }
-    }
-
-    if github == "" {
-        return None;
-    }
-
-    let activity: Activity =
-        blocking::get(format!("https://github-contributions.now.sh/api/v1/{}", github).as_str())
+    if data.is_empty() {
+        let mut github: String = "".to_string();
+        let connections: Vec<ApiUserConnection> = oauth_request("users/@me/connections", token.clone())
             .unwrap()
             .json()
             .unwrap();
 
-    Some(User {
-        name: me.username,
-        github,
-        id: me.id.parse::<u64>().unwrap(),
-        activity,
-        avatar_url: format!(
-            "https://cdn.discordapp.com/avatars/{}/{}.png",
-            me.id, me.avatar
-        ),
-    })
+        for conn in connections {
+            if conn.conn_type.to_lowercase() == "github" {
+                github = conn.name;
+                break;
+            }
+        }
+
+        if github == "" {
+            return None;
+        }
+
+        let activity: ApiActivity =
+            blocking::get(format!("https://github-contributions.now.sh/api/v1/{}", github).as_str())
+                .unwrap()
+                .json()
+                .unwrap();
+
+        make_new_user(UserJoined {
+            discord_id: me.id.parse().unwrap(),
+            contributions: activity.years.last().unwrap().total,
+            github: github.clone(),
+        }, &db);
+
+        println!("Non cache..");
+        Some(ApiProfile {
+            tag: format!("{}#{}", me.username, me.discriminator),
+            github: github.clone(),
+            avatar_url: format!(
+                "https://cdn.discordapp.com/avatars/{}/{}.png",
+                me.id, me.avatar
+            ),
+            contributions: activity.years.last().unwrap().total
+        })
+    } else {
+        println!("Cache..");
+        let db_user = data.get(0).unwrap();
+        Some(ApiProfile {
+            tag: format!("{}#{}", me.username, me.discriminator),
+            github: db_user.github.clone(),
+            avatar_url: format!(
+                "https://cdn.discordapp.com/avatars/{}/{}.png",
+                me.id, me.avatar
+            ),
+            contributions: db_user.contributions.clone()
+        })
+    }
+}
+
+pub fn make_new_user(user: UserJoined, db: &PgConnection) {
+    let mut time = Utc::now() + Duration::minutes(5);
+    let new_user = NewUser {
+        discord_id: user.discord_id,
+        contributions: user.contributions,
+        expires: time.naive_utc(),
+    };
+
+    diesel::insert_into(users::table)
+        .values(&new_user)
+        .execute(db)
+        .expect("Unable to insert");
+
+    time = Utc::now() + Duration::days(1);
+    let new_connection = NewConnection {
+        discord_id: user.discord_id,
+        github: user.github,
+        expires: time.naive_utc(),
+    };
+
+    diesel::insert_into(connections::table)
+        .values(&new_connection)
+        .execute(db)
+        .expect("Unable to insert");
 }

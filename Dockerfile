@@ -9,6 +9,8 @@ RUN rm src/*.rs
 
 ADD . ./
 
+ENV DATABASE_URL=postgres://octorace:password@localhost/postgres
+
 RUN rm ./target/release/deps/octorace*
 
 RUN apt-get update

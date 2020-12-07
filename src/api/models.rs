@@ -8,7 +8,7 @@ pub struct ApiUserConnection {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ApiUser {
+pub struct DiscordUser {
     pub(crate) id: String,
     pub(crate) username: String,
     pub(crate) avatar: String,

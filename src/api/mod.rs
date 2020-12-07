@@ -1,16 +1,12 @@
 mod models;
 pub mod user;
 
-use crate::oauth::oauth_request;
-use reqwest::blocking;
-use rocket::get;
 use rocket::http::ContentType;
-use rocket::http::{Cookies, Status};
+use rocket::http::{Status};
 use rocket::request::Request;
 use rocket::response;
 use rocket::response::{Responder, Response};
 use rocket_contrib::json;
-use rocket_contrib::json::Json;
 use rocket_contrib::json::JsonValue;
 
 #[derive(Debug)]

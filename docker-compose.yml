@@ -4,3 +4,13 @@ services:
     build: .
     ports:
     - "8000:8000"
+  database:
+    image: "postgres"
+    env_file:
+      - database.env
+    volumes:
+    - postgres:/var/lib/postgresql/data/
+
+
+volumes:
+  postgres:

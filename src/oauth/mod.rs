@@ -2,7 +2,7 @@ pub mod routes;
 
 use oauth2::basic::{BasicClient, BasicErrorResponseType, BasicTokenType};
 use oauth2::{
-    AccessToken, AuthUrl, ClientId, ClientSecret, EmptyExtraTokenFields, RedirectUrl,
+    AuthUrl, ClientId, ClientSecret, EmptyExtraTokenFields, RedirectUrl,
     StandardErrorResponse, StandardTokenResponse, TokenUrl,
 };
 use reqwest::blocking;

@@ -1,4 +1,4 @@
-use crate::oauth::{oauth_request, OauthClient};
+use crate::oauth::{OauthClient};
 use oauth2::reqwest::http_client;
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use rocket::get;
@@ -8,7 +8,7 @@ use rocket::State;
 
 #[get("/")]
 pub fn oauth_main(client: State<OauthClient>) -> Redirect {
-    let (authorize_url, csrf_state) = client
+    let (authorize_url, _csrf_state) = client
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("identify".to_string()))
@@ -19,6 +19,7 @@ pub fn oauth_main(client: State<OauthClient>) -> Redirect {
     Redirect::to(authorize_url.to_string())
 }
 
+#[allow(unused_variables)]
 #[get("/callback?<code>&<state>")]
 pub fn oauth_callback(
     client: State<OauthClient>,

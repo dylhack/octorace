@@ -2,8 +2,7 @@ use lazy_static::lazy_static;
 use serenity::async_trait;
 use serenity::client::bridge::gateway::GatewayIntents;
 use serenity::model::guild::Guild;
-use serenity::model::id::GuildId;
-use serenity::model::prelude::{Message, Ready};
+use serenity::model::prelude::{Ready};
 use serenity::prelude::*;
 use serenity::Client;
 use std::sync::Mutex;
@@ -18,7 +17,7 @@ struct Handler;
 impl EventHandler for Handler {
     // This is because clion is stupid
     //noinspection ALL
-    async fn guild_create(&self, _ctx: Context, guild: Guild, is_new: bool) {
+    async fn guild_create(&self, _ctx: Context, guild: Guild, _is_new: bool) {
         GUILDS.lock().unwrap().push(guild);
     }
 
