@@ -3,6 +3,8 @@ table! {
         discord_id -> BigInt,
         contributions -> Integer,
         expires -> Timestamp,
+        tag -> Text,
+        avatar_url -> Text,
     }
 }
 

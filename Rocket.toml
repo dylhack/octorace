@@ -1,3 +1,7 @@
-[default]
+[debug]
+adress = "localhost"
+port = 8000
+
+[release]
 address = "0.0.0.0"
 port = 8000

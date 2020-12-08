@@ -8,6 +8,8 @@ pub struct User {
     pub discord_id: i64,
     pub contributions: i32,
     pub expires: NaiveDateTime,
+    pub tag: String,
+    pub avatar_url: String,
 }
 
 #[derive(Insertable)]
@@ -16,6 +18,8 @@ pub struct NewUser {
     pub discord_id: i64,
     pub contributions: i32,
     pub expires: NaiveDateTime,
+    pub tag: String,
+    pub avatar_url: String,
 }
 
 #[derive(Queryable, Debug)]

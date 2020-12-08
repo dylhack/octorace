@@ -14,6 +14,7 @@ use diesel::{
 use reqwest::{get};
 use rocket::get;
 use rocket::http::{CookieJar, Status};
+use std::convert::TryInto;
 
 #[derive(Debug, Queryable)]
 pub struct UserJoined {
@@ -90,6 +91,7 @@ pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
                 contributions: contribs,
                 github: github.clone(),
             },
+            &me,
             &db,
         );
         add_user_guilds(token.clone(), &db, me.id.parse().unwrap()).await;
@@ -130,12 +132,17 @@ pub async fn get_contributions(username: String) -> i32 {
     activity.years.last().unwrap().total
 }
 
-pub fn make_new_user(user: UserJoined, db: &PgConnection) {
+pub fn make_new_user(user: UserJoined, me: &DiscordUser, db: &PgConnection) {
     let mut time = Utc::now() + Duration::minutes(5);
     let new_user = NewUser {
         discord_id: user.discord_id,
         contributions: user.contributions,
         expires: time.naive_utc(),
+        tag: format!("{}#{}", me.username, me.discriminator),
+        avatar_url: format!(
+            "https://cdn.discordapp.com/avatars/{}/{}.png",
+            me.id, me.avatar
+        )
     };
 
     diesel::insert_into(users::table)
