@@ -35,7 +35,7 @@ async fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .manage(oauth_client)
         .manage(db::pool::pool().await)
-        .mount("/", StaticFiles::from(crate_relative!("/public")))
+        .mount("/", StaticFiles::from(crate_relative!("/web/build")))
         .mount("/oauth", routes![oauth_main, oauth_callback])
         .mount("/api", routes![get_user, get_guilds])
 }
