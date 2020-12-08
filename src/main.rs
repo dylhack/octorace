@@ -7,6 +7,7 @@ mod db;
 mod macros;
 mod models;
 mod oauth;
+mod config;
 
 use crate::api::guilds::*;
 use crate::api::user::*;
@@ -15,10 +16,19 @@ use crate::oauth::routes::*;
 
 use rocket::routes;
 use rocket_contrib::serve::StaticFiles;
+use crate::config::Config;
 
 #[launch]
 async fn rocket() -> rocket::Rocket {
-    let oauth_client = create_oauth_client();
+    let config = Config::new();
+
+    if config.client_secret.is_empty() {
+        println!("Please fill in config.yml");
+    }
+
+    let oauth_client = create_oauth_client(config);
+
+
 
     println!("Starting server..");
 

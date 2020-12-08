@@ -15,7 +15,7 @@ pub async fn pool() -> Pool {
 #[allow(clippy::or_fun_call)]
 fn database_url() -> String {
     env::var("DATABASE_URL").unwrap_or(
-        "postgres://postgres:password123@localhost/postgres?options=-c search_path%3Doctorace"
+        "postgres://postgres:password123@localhost/postgres"
             .to_string(),
     )
 }

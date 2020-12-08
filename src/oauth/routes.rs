@@ -37,7 +37,6 @@ pub async fn oauth_callback(
 
         let cookie = Cookie::build("discord_token", discord_token.secret().clone())
             .path("/")
-            .secure(true)
             .finish();
 
         jar.add(cookie);

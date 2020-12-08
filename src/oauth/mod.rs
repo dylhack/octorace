@@ -7,6 +7,7 @@ use oauth2::{
 };
 use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
+use crate::config::Config;
 
 type OauthClient = oauth2::Client<
     StandardErrorResponse<BasicErrorResponseType>,
@@ -14,9 +15,9 @@ type OauthClient = oauth2::Client<
     BasicTokenType,
 >;
 
-pub fn create_oauth_client() -> OauthClient {
-    let discord_client_id = ClientId::new("784817377505312799".to_string());
-    let discord_client_secret = ClientSecret::new("RMJS6Mr0AW3dlXyRHM0JHvWTWrDFcPII".to_string());
+pub fn create_oauth_client(config: Config) -> OauthClient {
+    let discord_client_id = ClientId::new(config.client_id.to_string());
+    let discord_client_secret = ClientSecret::new(config.client_secret);
 
     let auth_url = AuthUrl::new("https://discord.com/api/oauth2/authorize".to_string())
         .expect("Invalid authorization endpoint URL");
@@ -31,7 +32,7 @@ pub fn create_oauth_client() -> OauthClient {
         Some(token_url),
     )
     .set_redirect_url(
-        RedirectUrl::new("http://localhost:8000/oauth/callback".to_string())
+        RedirectUrl::new(format!("{}/oauth/callback", config.domain))
             .expect("Invalid redirect URL"),
     )
 }
