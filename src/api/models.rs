@@ -13,7 +13,6 @@ pub struct DiscordUser {
     pub(crate) username: String,
     pub(crate) avatar: String,
     pub(crate) discriminator: String,
-    pub(crate) email: String,
 }
 
 #[derive(Debug, Deserialize)]
