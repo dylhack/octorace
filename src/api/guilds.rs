@@ -1,22 +1,14 @@
 use crate::api::models::DiscordGuild;
 use crate::api::{json, ApiResponse};
 use crate::db::guard::DbConn;
-use crate::diesel::RunQueryDsl;
+use crate::db::pool::Pool;
 use crate::models::{ApiGuild, ApiProfile};
 use crate::oauth::oauth_request;
-use crate::schemas::diesel::{guilds, connections};
-use crate::schemas::diesel::users;
-use diesel::{ExpressionMethods, QueryDsl, JoinOnDsl, sql_query};
 use rocket::get;
 use rocket::http::{CookieJar, Status};
 
-#[derive(Queryable)]
-pub struct ProfileJoined {
-
-}
-
 #[get("/guilds")]
-pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn) -> ApiResponse {
+pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
     let token = jar.get("discord_token");
     return match token {
         Some(token) => match get_api_guilds(token.value().to_string(), &db).await {
@@ -36,7 +28,7 @@ pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn) -> ApiResponse {
     };
 }
 
-pub async fn get_api_guilds(token: String, db: &DbConn) -> Option<Vec<ApiGuild>> {
+pub async fn get_api_guilds(token: String, pool: &Pool) -> Option<Vec<ApiGuild>> {
     let discord_guilds: Vec<DiscordGuild> = oauth_request("users/@me/guilds", token.clone())
         .await
         .unwrap()
@@ -46,12 +38,20 @@ pub async fn get_api_guilds(token: String, db: &DbConn) -> Option<Vec<ApiGuild>>
 
     let mut api_guilds: Vec<ApiGuild> = vec![];
     for guild in discord_guilds {
-        let res: i64 = guilds::table
-            .filter(guilds::guild_id.eq(guild.id.parse::<i64>().unwrap()))
-            .count()
-            .get_result(&db.0)
-            .unwrap();
-        if res > 1 {
+        // let res: i64 = guilds::table
+        //     .filter(guilds::guild_id.eq(guild.id.parse::<i64>().unwrap()))
+        //     .count()
+        //     .get_result(&db.0)
+        //     .unwrap();
+        let res = sqlx::query!(
+            "SELECT count(*) FROM octorace.guilds WHERE guild_id = $1",
+            guild.id.parse::<i64>().unwrap()
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap();
+        println!("{:?}", res);
+        if res.count.unwrap() > 1 {
             let icon = {
                 if let Some(icon) = guild.icon {
                     format!("https://cdn.discordapp.com/icons/{}/{}.png", guild.id, icon)
@@ -60,11 +60,18 @@ pub async fn get_api_guilds(token: String, db: &DbConn) -> Option<Vec<ApiGuild>>
                 }
             };
 
-            let profiles: Vec<ApiProfile> = sql_query(format!("
-                SELECT * FROM octorace.guilds
+            let profiles: Vec<ApiProfile> = sqlx::query_as!(
+                ApiProfile,
+                "
+                SELECT tag, contributions, avatar_url, github FROM octorace.guilds
                     INNER JOIN octorace.users u on u.discord_id = guilds.discord_id
                     INNER JOIN octorace.connections c on u.discord_id = c.discord_id
-                WHERE guilds.guild_id = {}", guild.id)).load(&db.0).unwrap();
+                WHERE guilds.guild_id = $1",
+                guild.id.parse::<i64>().unwrap()
+            )
+            .fetch_all(pool)
+            .await
+            .unwrap();
 
             api_guilds.push(ApiGuild {
                 name: guild.name,

@@ -1,22 +1,15 @@
 use crate::api::models::{ApiUserConnection, DiscordGuild, DiscordUser};
 use crate::api::{json, ApiResponse};
 use crate::db::guard::DbConn;
+use crate::db::pool::Pool;
 use crate::models::{ApiActivity, ApiProfile};
 use crate::oauth::oauth_request;
-use crate::schemas::diesel::connections;
-use crate::schemas::diesel::guilds;
-use crate::schemas::diesel::users;
-use crate::schemas::{NewConnection, NewGuild, NewUser};
 use chrono::{Duration, Utc};
-use diesel::{
-    BoolExpressionMethods, ExpressionMethods, JoinOnDsl, PgConnection, QueryDsl, RunQueryDsl,
-};
-use reqwest::{get};
+use reqwest::get;
 use rocket::get;
 use rocket::http::{CookieJar, Status};
-use std::convert::TryInto;
 
-#[derive(Debug, Queryable)]
+#[derive(Debug)]
 pub struct UserJoined {
     pub discord_id: i64,
     pub contributions: i32,
@@ -24,7 +17,7 @@ pub struct UserJoined {
 }
 
 #[get("/user")]
-pub async fn get_user(jar: &CookieJar<'_>, db: DbConn) -> ApiResponse {
+pub async fn get_user(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
     let token = jar.get("discord_token");
     return match token {
         Some(token) => match get_api_user(token.value().to_string(), &db).await {
@@ -44,7 +37,7 @@ pub async fn get_user(jar: &CookieJar<'_>, db: DbConn) -> ApiResponse {
     };
 }
 
-pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
+pub async fn get_api_user(token: String, pool: &Pool) -> Option<ApiProfile> {
     let me: DiscordUser = oauth_request("users/@me", token.clone())
         .await
         .unwrap()
@@ -52,15 +45,17 @@ pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
         .await
         .unwrap();
 
-    let data: Vec<UserJoined> = users::table
-        .inner_join(
-            connections::table.on(users::discord_id
-                .eq(connections::discord_id)
-                .and(users::discord_id.eq(me.id.parse::<i64>().unwrap()))),
-        )
-        .select((users::discord_id, users::contributions, connections::github))
-        .load(&db.0)
-        .unwrap();
+    let data: Vec<UserJoined> = sqlx::query_as!(
+        UserJoined,
+        "SELECT users.discord_id, contributions, github \
+    FROM octorace.users \
+    INNER JOIN octorace.connections c on users.discord_id = c.discord_id \
+    WHERE users.discord_id = $1",
+        me.id.parse::<i64>().unwrap()
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap();
 
     if data.is_empty() {
         let mut github: String = "".to_string();
@@ -92,9 +87,10 @@ pub async fn get_api_user(token: String, db: &DbConn) -> Option<ApiProfile> {
                 github: github.clone(),
             },
             &me,
-            &db,
-        );
-        add_user_guilds(token.clone(), &db, me.id.parse().unwrap()).await;
+            pool,
+        )
+        .await;
+        add_user_guilds(token.clone(), pool, me.id.parse().unwrap()).await;
 
         Some(ApiProfile {
             tag: format!("{}#{}", me.username, me.discriminator),
@@ -132,38 +128,40 @@ pub async fn get_contributions(username: String) -> i32 {
     activity.years.last().unwrap().total
 }
 
-pub fn make_new_user(user: UserJoined, me: &DiscordUser, db: &PgConnection) {
+pub async fn make_new_user(user: UserJoined, me: &DiscordUser, pool: &Pool) {
     let mut time = Utc::now() + Duration::minutes(5);
-    let new_user = NewUser {
-        discord_id: user.discord_id,
-        contributions: user.contributions,
-        expires: time.naive_utc(),
-        tag: format!("{}#{}", me.username, me.discriminator),
-        avatar_url: format!(
+    sqlx::query!(
+        "
+        INSERT INTO octorace.users (discord_id, contributions, expires, tag, avatar_url)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (discord_id)
+                DO NOTHING",
+        user.discord_id,
+        user.contributions,
+        time.naive_utc(),
+        format!("{}#{}", me.username, me.discriminator),
+        format!(
             "https://cdn.discordapp.com/avatars/{}/{}.png",
             me.id, me.avatar
         )
-    };
-
-    diesel::insert_into(users::table)
-        .values(&new_user)
-        .execute(db)
-        .expect("Unable to insert");
+    )
+    .execute(pool)
+    .await
+    .expect("Unable to insert");
 
     time = Utc::now() + Duration::days(1);
-    let new_connection = NewConnection {
-        discord_id: user.discord_id,
-        github: user.github,
-        expires: time.naive_utc(),
-    };
-
-    diesel::insert_into(connections::table)
-        .values(&new_connection)
-        .execute(db)
-        .expect("Unable to insert");
+    sqlx::query!(
+        "INSERT INTO octorace.connections (discord_id, github, expires) VALUES ($1, $2, $3)",
+        user.discord_id,
+        user.github,
+        time.naive_utc(),
+    )
+    .execute(pool)
+    .await
+    .expect("Unable to insert");
 }
 
-pub async fn add_user_guilds(token: String, db: &DbConn, user_id: i64) {
+pub async fn add_user_guilds(token: String, pool: &Pool, user_id: i64) {
     let discord_guilds: Vec<DiscordGuild> = oauth_request("users/@me/guilds", token)
         .await
         .unwrap()
@@ -172,14 +170,16 @@ pub async fn add_user_guilds(token: String, db: &DbConn, user_id: i64) {
         .unwrap();
 
     for guild in discord_guilds {
-        let new_guild = NewGuild {
-            discord_id: user_id,
-            guild_id: guild.id.parse().unwrap(),
-        };
-        diesel::insert_into(guilds::table)
-            .values(&new_guild)
-            .on_conflict_do_nothing()
-            .execute(&db.0)
-            .expect("Unable to insert");
+        sqlx::query!(
+            "\
+            INSERT INTO octorace.guilds (discord_id, guild_id) \
+            VALUES ($1, $2) \
+            ON CONFLICT DO NOTHING",
+            user_id,
+            guild.id.parse::<i64>().unwrap()
+        )
+        .execute(pool)
+        .await
+        .expect("Unable to insert");
     }
 }

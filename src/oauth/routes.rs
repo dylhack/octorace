@@ -1,5 +1,5 @@
 use crate::oauth::OauthClient;
-use oauth2::reqwest::{async_http_client};
+use oauth2::reqwest::async_http_client;
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use rocket::get;
 use rocket::http::{Cookie, CookieJar};
