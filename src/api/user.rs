@@ -125,7 +125,7 @@ pub async fn get_contributions(username: String) -> i32 {
             .await
             .unwrap();
 
-    activity.years.last().unwrap().total
+    activity.years.first().unwrap().total
 }
 
 pub async fn make_new_user(user: UserJoined, me: &DiscordUser, pool: &Pool) {

@@ -6,6 +6,7 @@ use crate::models::{ApiGuild, ApiProfile};
 use crate::oauth::oauth_request;
 use rocket::get;
 use rocket::http::{CookieJar, Status};
+use std::time::Instant;
 
 #[get("/guilds")]
 pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
@@ -36,6 +37,7 @@ pub async fn get_api_guilds(token: String, pool: &Pool) -> Option<Vec<ApiGuild>>
         .await
         .unwrap();
 
+
     let mut api_guilds: Vec<ApiGuild> = vec![];
     for guild in discord_guilds {
         let res = sqlx::query!(
@@ -63,6 +65,7 @@ pub async fn get_api_guilds(token: String, pool: &Pool) -> Option<Vec<ApiGuild>>
             })
         }
     }
+
     if !api_guilds.is_empty() {
         Some(api_guilds)
     } else {
