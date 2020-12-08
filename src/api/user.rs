@@ -58,50 +58,10 @@ pub async fn get_api_user(token: String, pool: &Pool) -> Option<ApiProfile> {
     .unwrap();
 
     if data.is_empty() {
-        let mut github: String = "".to_string();
-        let connections: Vec<ApiUserConnection> =
-            oauth_request("users/@me/connections", token.clone())
-                .await
-                .unwrap()
-                .json()
-                .await
-                .unwrap();
+        return None;
+    }
 
-        for conn in connections {
-            if conn.conn_type.to_lowercase() == "github" {
-                github = conn.name;
-                break;
-            }
-        }
-
-        if github.is_empty() {
-            return None;
-        }
-
-        let contribs = get_contributions(github.clone()).await;
-
-        make_new_user(
-            UserJoined {
-                discord_id: me.id.parse().unwrap(),
-                contributions: contribs,
-                github: github.clone(),
-            },
-            &me,
-            pool,
-        )
-        .await;
-        add_user_guilds(token.clone(), pool, me.id.parse().unwrap()).await;
-
-        Some(ApiProfile {
-            tag: format!("{}#{}", me.username, me.discriminator),
-            github: github.clone(),
-            avatar_url: format!(
-                "https://cdn.discordapp.com/avatars/{}/{}.png",
-                me.id, me.avatar
-            ),
-            contributions: contribs,
-        })
-    } else if let Some(db_user) = data.get(0) {
+    if let Some(db_user) = data.get(0) {
         Some(ApiProfile {
             tag: format!("{}#{}", me.username, me.discriminator),
             github: db_user.github.clone(),

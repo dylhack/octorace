@@ -1,5 +1,5 @@
 pub mod guilds;
-mod models;
+pub(crate) mod models;
 pub mod user;
 
 use rocket::http::ContentType;
