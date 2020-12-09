@@ -4,3 +4,4 @@ web/node_modules
 public
 .env/
 config.yml
+Rocket.toml
