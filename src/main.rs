@@ -17,6 +17,13 @@ use crate::oauth::routes::*;
 use crate::config::Config;
 use rocket::routes;
 use rocket_contrib::serve::StaticFiles;
+use std::path::{PathBuf, Path};
+use rocket::response::NamedFile;
+
+#[get("/<_file..>")]
+async fn get_react_guild(_file: PathBuf) -> Option<NamedFile> {
+    NamedFile::open(Path::new(crate_relative!("/web/build/index.html"))).await.ok()
+}
 
 #[launch]
 async fn rocket() -> rocket::Rocket {
@@ -37,4 +44,5 @@ async fn rocket() -> rocket::Rocket {
         .mount("/", StaticFiles::from(crate_relative!("/web/build")))
         .mount("/oauth", routes![oauth_main, oauth_callback])
         .mount("/api", routes![get_user, get_guilds])
+        .mount("/guild", routes![get_react_guild])
 }

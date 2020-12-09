@@ -49,7 +49,20 @@ pub async fn oauth_callback(
 
         jar.add(cookie);
 
-        create_user(discord_token.secret().clone(), &db, &config).await;
+        let me: DiscordUser = oauth_request("users/@me", token.access_token().secret().clone())
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+        let user_id_cookie = Cookie::build("discord_id", me.id.clone())
+            .path("/")
+            .finish();
+
+        jar.add(user_id_cookie);
+
+        create_user(discord_token.secret().clone(), &db, &config, me).await;
 
         Redirect::to("/")
     } else {
@@ -58,13 +71,7 @@ pub async fn oauth_callback(
     };
 }
 
-async fn create_user(token: String, pool: &Pool, config: &Config) {
-    let me: DiscordUser = oauth_request("users/@me", token.clone())
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+async fn create_user(token: String, pool: &Pool, config: &Config, me: DiscordUser) {
 
     let exists = sqlx::query!(
         "SELECT * FROM octorace.users WHERE discord_id = $1",
@@ -104,6 +111,8 @@ async fn create_user(token: String, pool: &Pool, config: &Config) {
             discord_id: me.id.parse().unwrap(),
             contributions: contribs,
             github: github.clone(),
+            tag: "".to_string(),
+            avatar_url: "".to_string()
         },
         &me,
         pool,

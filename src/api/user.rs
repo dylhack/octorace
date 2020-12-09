@@ -18,6 +18,8 @@ pub struct UserJoined {
     pub discord_id: i64,
     pub contributions: i32,
     pub github: String,
+    pub tag: String,
+    pub avatar_url: String,
 }
 
 #[derive(GraphQLQuery)]
@@ -32,7 +34,7 @@ pub struct GithubReturn;
 pub async fn get_user(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
     let token = jar.get("discord_token");
     return match token {
-        Some(token) => match get_api_user(token.value().to_string(), &db).await {
+        Some(token) => match get_api_user(token.value().to_string(), &db, jar).await {
             Some(user) => ApiResponse {
                 json: json!(&user),
                 status: Status::Ok,
@@ -49,21 +51,15 @@ pub async fn get_user(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
     };
 }
 
-pub async fn get_api_user(token: String, pool: &Pool) -> Option<ApiProfile> {
-    let me: DiscordUser = oauth_request("users/@me", token.clone())
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-
+pub async fn get_api_user(token: String, pool: &Pool, jar: &CookieJar<'_>) -> Option<ApiProfile> {
+    let user_id = jar.get("discord_id").unwrap().value();
     let data: Vec<UserJoined> = sqlx::query_as!(
         UserJoined,
-        "SELECT users.discord_id, contributions, github \
+        "SELECT users.discord_id, contributions, github, tag, avatar_url \
     FROM octorace.users \
     INNER JOIN octorace.connections c on users.discord_id = c.discord_id \
     WHERE users.discord_id = $1",
-        me.id.parse::<i64>().unwrap()
+        user_id.parse::<i64>().unwrap()
     )
     .fetch_all(pool)
     .await
@@ -75,12 +71,9 @@ pub async fn get_api_user(token: String, pool: &Pool) -> Option<ApiProfile> {
 
     if let Some(db_user) = data.get(0) {
         Some(ApiProfile {
-            tag: format!("{}#{}", me.username, me.discriminator),
+            tag: db_user.tag.clone(),
             github: db_user.github.clone(),
-            avatar_url: format!(
-                "https://cdn.discordapp.com/avatars/{}/{}.png",
-                me.id, me.avatar
-            ),
+            avatar_url: db_user.avatar_url.clone(),
             contributions: db_user.contributions,
         })
     } else {
