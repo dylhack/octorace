@@ -1,6 +1,6 @@
-use serde::Deserialize;
-use graphql_client::*;
 use chrono::Date;
+use graphql_client::*;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct ApiUserConnection {

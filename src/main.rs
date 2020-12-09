@@ -15,14 +15,16 @@ use crate::oauth::create_oauth_client;
 use crate::oauth::routes::*;
 
 use crate::config::Config;
+use rocket::response::NamedFile;
 use rocket::routes;
 use rocket_contrib::serve::StaticFiles;
-use std::path::{PathBuf, Path};
-use rocket::response::NamedFile;
+use std::path::{Path, PathBuf};
 
 #[get("/<_file..>")]
 async fn get_react_guild(_file: PathBuf) -> Option<NamedFile> {
-    NamedFile::open(Path::new(crate_relative!("/web/build/index.html"))).await.ok()
+    NamedFile::open(Path::new(crate_relative!("/web/build/index.html")))
+        .await
+        .ok()
 }
 
 #[launch]

@@ -6,12 +6,12 @@ use crate::db::pool::Pool;
 use crate::models::{ApiActivity, ApiProfile};
 use crate::oauth::oauth_request;
 use chrono::{Duration, Utc};
+use graphql_client::*;
 use reqwest::header::{HeaderMap, AUTHORIZATION};
 use reqwest::{get, Client};
 use rocket::http::{CookieJar, Status};
 use rocket::{get, State};
 use serde_json::Value;
-use graphql_client::*;
 
 #[derive(Debug)]
 pub struct UserJoined {
@@ -24,9 +24,9 @@ pub struct UserJoined {
 
 #[derive(GraphQLQuery)]
 #[graphql(
-schema_path = "src/api/schemas/schema.graphql",
-query_path = "src/api/schemas/github_contrib_query.graphql",
-response_derives = "Debug"
+    schema_path = "src/api/schemas/schema.graphql",
+    query_path = "src/api/schemas/github_contrib_query.graphql",
+    response_derives = "Debug"
 )]
 pub struct GithubReturn;
 
@@ -99,15 +99,15 @@ pub async fn get_contributions(username: String, config: &Config) -> i32 {
         .await
         .expect("Unable to query github");
 
+    let data: Response<github_return::ResponseData> = res.json().await.unwrap();
 
-    let data: Response<github_return::ResponseData>= res.json().await.unwrap();
-    println!("{:?}", data);
-
-    data.data.unwrap().user.unwrap()
+    data.data
+        .unwrap()
+        .user
+        .unwrap()
         .contributions_collection
         .contribution_calendar
-        .total_contributions
-        as i32
+        .total_contributions as i32
 }
 
 pub async fn make_new_user(user: UserJoined, me: &DiscordUser, pool: &Pool) {
