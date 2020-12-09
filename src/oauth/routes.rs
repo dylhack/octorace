@@ -1,15 +1,16 @@
-use crate::oauth::{OauthClient, oauth_request};
+use crate::api::models::{ApiUserConnection, DiscordUser};
+use crate::api::user::{add_user_guilds, get_contributions, make_new_user, UserJoined};
+use crate::config::Config;
+use crate::db::guard::DbConn;
+use crate::db::pool::Pool;
+use crate::models::ApiProfile;
+use crate::oauth::{oauth_request, OauthClient};
 use oauth2::reqwest::async_http_client;
 use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
 use rocket::get;
 use rocket::http::{Cookie, CookieJar};
 use rocket::response::Redirect;
 use rocket::State;
-use crate::api::user::{get_contributions, make_new_user, UserJoined, add_user_guilds};
-use crate::models::ApiProfile;
-use crate::db::guard::DbConn;
-use crate::api::models::{ApiUserConnection, DiscordUser};
-use crate::db::pool::Pool;
 
 #[get("/")]
 pub fn oauth_main(client: State<OauthClient>) -> Redirect {
@@ -30,7 +31,8 @@ pub async fn oauth_callback(
     code: String,
     state: String,
     jar: &CookieJar<'_>,
-    db: DbConn<'_>
+    db: DbConn<'_>,
+    config: State<'_, Config>,
 ) -> Redirect {
     let code = AuthorizationCode::new(code);
     let token_res = client
@@ -39,7 +41,6 @@ pub async fn oauth_callback(
         .await;
 
     return if let Ok(token) = token_res {
-
         let discord_token = token.access_token();
 
         let cookie = Cookie::build("discord_token", discord_token.secret().clone())
@@ -48,7 +49,7 @@ pub async fn oauth_callback(
 
         jar.add(cookie);
 
-        create_user(discord_token.secret().clone(), &db).await;
+        create_user(discord_token.secret().clone(), &db, &config).await;
 
         Redirect::to("/")
     } else {
@@ -57,8 +58,7 @@ pub async fn oauth_callback(
     };
 }
 
-async fn create_user(token: String, pool: &Pool) {
-
+async fn create_user(token: String, pool: &Pool, config: &Config) {
     let me: DiscordUser = oauth_request("users/@me", token.clone())
         .await
         .unwrap()
@@ -66,23 +66,25 @@ async fn create_user(token: String, pool: &Pool) {
         .await
         .unwrap();
 
-    let exists = sqlx::query!("SELECT * FROM octorace.users WHERE discord_id = $1", me.id.parse::<i64>().unwrap())
-        .fetch_optional(pool)
-        .await
-        .unwrap();
+    let exists = sqlx::query!(
+        "SELECT * FROM octorace.users WHERE discord_id = $1",
+        me.id.parse::<i64>().unwrap()
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap();
 
     if let Some(_) = exists {
         return;
     }
 
     let mut github: String = "".to_string();
-    let connections: Vec<ApiUserConnection> =
-        oauth_request("users/@me/connections", token.clone())
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+    let connections: Vec<ApiUserConnection> = oauth_request("users/@me/connections", token.clone())
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
     for conn in connections {
         if conn.conn_type.to_lowercase() == "github" {
@@ -95,7 +97,7 @@ async fn create_user(token: String, pool: &Pool) {
         return;
     }
 
-    let contribs = get_contributions(github.clone()).await;
+    let contribs = get_contributions(github.clone(), config).await;
 
     make_new_user(
         UserJoined {
@@ -106,6 +108,6 @@ async fn create_user(token: String, pool: &Pool) {
         &me,
         pool,
     )
-        .await;
+    .await;
     add_user_guilds(token.clone(), pool, me.id.parse().unwrap()).await;
 }

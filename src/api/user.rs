@@ -1,13 +1,17 @@
 use crate::api::models::{ApiUserConnection, DiscordGuild, DiscordUser};
 use crate::api::{json, ApiResponse};
+use crate::config::Config;
 use crate::db::guard::DbConn;
 use crate::db::pool::Pool;
 use crate::models::{ApiActivity, ApiProfile};
 use crate::oauth::oauth_request;
 use chrono::{Duration, Utc};
-use reqwest::get;
-use rocket::get;
+use reqwest::header::{HeaderMap, AUTHORIZATION};
+use reqwest::{get, Client};
 use rocket::http::{CookieJar, Status};
+use rocket::{get, State};
+use serde_json::Value;
+use graphql_client::*;
 
 #[derive(Debug)]
 pub struct UserJoined {
@@ -15,6 +19,14 @@ pub struct UserJoined {
     pub contributions: i32,
     pub github: String,
 }
+
+#[derive(GraphQLQuery)]
+#[graphql(
+schema_path = "src/api/schemas/schema.graphql",
+query_path = "src/api/schemas/github_contrib_query.graphql",
+response_derives = "Debug"
+)]
+pub struct GithubReturn;
 
 #[get("/user")]
 pub async fn get_user(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
@@ -76,16 +88,33 @@ pub async fn get_api_user(token: String, pool: &Pool) -> Option<ApiProfile> {
     }
 }
 
-pub async fn get_contributions(username: String) -> i32 {
-    let activity: ApiActivity =
-        get(format!("https://github-contributions.now.sh/api/v1/{}", username).as_str())
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+pub async fn get_contributions(username: String, config: &Config) -> i32 {
+    let q = GithubReturn::build_query(github_return::Variables {
+        login: username.clone(),
+    });
 
-    activity.years.first().unwrap().total
+    let client = Client::builder()
+        .user_agent("graphql-rust/0.9.0")
+        .build()
+        .unwrap();
+
+    let res = client
+        .post("https://api.github.com/graphql")
+        .bearer_auth(config.github_key.clone())
+        .json(&q)
+        .send()
+        .await
+        .expect("Unable to query github");
+
+
+    let data: Response<github_return::ResponseData>= res.json().await.unwrap();
+    println!("{:?}", data);
+
+    data.data.unwrap().user.unwrap()
+        .contributions_collection
+        .contribution_calendar
+        .total_contributions
+        as i32
 }
 
 pub async fn make_new_user(user: UserJoined, me: &DiscordUser, pool: &Pool) {

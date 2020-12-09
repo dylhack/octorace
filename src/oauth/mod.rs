@@ -1,5 +1,6 @@
 pub mod routes;
 
+use crate::config::Config;
 use oauth2::basic::{BasicClient, BasicErrorResponseType, BasicTokenType};
 use oauth2::{
     AuthUrl, ClientId, ClientSecret, EmptyExtraTokenFields, RedirectUrl, StandardErrorResponse,
@@ -7,7 +8,6 @@ use oauth2::{
 };
 use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
-use crate::config::Config;
 
 type OauthClient = oauth2::Client<
     StandardErrorResponse<BasicErrorResponseType>,

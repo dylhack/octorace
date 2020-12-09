@@ -37,7 +37,6 @@ pub async fn get_api_guilds(token: String, pool: &Pool) -> Option<Vec<ApiGuild>>
         .await
         .unwrap();
 
-
     let mut api_guilds: Vec<ApiGuild> = vec![];
     for guild in discord_guilds {
         let res = sqlx::query!(
@@ -55,7 +54,6 @@ pub async fn get_api_guilds(token: String, pool: &Pool) -> Option<Vec<ApiGuild>>
                     "https://cdn.discordapp.com/attachments/723255066898858055/785526045884809256/Itky1.jpg".to_string()
                 }
             };
-
 
             api_guilds.push(ApiGuild {
                 name: guild.name.clone(),

@@ -12,6 +12,7 @@ pub struct Config {
     pub client_id: i64,
     pub client_secret: String,
     pub domain: String,
+    pub github_key: String,
 }
 
 impl Config {
@@ -23,7 +24,8 @@ impl Config {
                 let conf = Config {
                     client_id: 0,
                     client_secret: "".to_string(),
-                    domain: "".to_string()
+                    domain: "".to_string(),
+                    github_key: "".to_string(),
                 };
                 conf.save();
                 println!("Created a new config.yml to {}", &location);
