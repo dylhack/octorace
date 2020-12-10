@@ -1,17 +1,15 @@
-use crate::api::models::{ApiUserConnection, DiscordGuild, DiscordUser};
+use crate::api::models::{DiscordGuild, DiscordUser};
 use crate::api::{json, ApiResponse};
 use crate::config::Config;
 use crate::db::guard::DbConn;
 use crate::db::pool::Pool;
-use crate::models::{ApiActivity, ApiProfile};
+use crate::models::{ApiProfile};
 use crate::oauth::oauth_request;
 use chrono::{Duration, Utc};
 use graphql_client::*;
-use reqwest::header::{HeaderMap, AUTHORIZATION};
-use reqwest::{get, Client};
+use reqwest::{Client};
 use rocket::http::{CookieJar, Status};
-use rocket::{get, State};
-use serde_json::Value;
+use rocket::{get};
 
 #[derive(Debug)]
 pub struct UserJoined {
@@ -32,7 +30,7 @@ pub struct GithubReturn;
 
 #[get("/user")]
 pub async fn get_user(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
-    let token = jar.get("discord_token");
+    let token = jar.get_private("discord_token");
     return match token {
         Some(token) => match get_api_user(token.value().to_string(), &db, jar).await {
             Some(user) => ApiResponse {
@@ -51,8 +49,9 @@ pub async fn get_user(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
     };
 }
 
-pub async fn get_api_user(token: String, pool: &Pool, jar: &CookieJar<'_>) -> Option<ApiProfile> {
-    let user_id = jar.get("discord_id").unwrap().value();
+pub async fn get_api_user(_token: String, pool: &Pool, jar: &CookieJar<'_>) -> Option<ApiProfile> {
+    let user_cookie = jar.get_private("discord_id").unwrap();
+    let user_id = user_cookie.value();
     let data: Vec<UserJoined> = sqlx::query_as!(
         UserJoined,
         "SELECT users.discord_id, contributions, github, tag, avatar_url \

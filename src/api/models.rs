@@ -1,5 +1,3 @@
-use chrono::Date;
-use graphql_client::*;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

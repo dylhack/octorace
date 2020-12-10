@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 oauth2 = "4.0.0-alpha.2"
 url = "2.2.0"
-rocket = { git = "https://github.com/SergioBenitez/Rocket.git", branch = "master" }
 lazy_static = "1.4.0"
 rocket_contrib = { git = "https://github.com/SergioBenitez/Rocket.git", branch = "master" }
 chrono = { version = "0.4", features = ["serde"] }
@@ -32,3 +31,8 @@ version = "1.0.99"
 version = "0.4.1"
 default-features = false
 features = ["runtime-tokio-rustls", "macros", "postgres", "uuid", "offline", "chrono"]
+
+[dependencies.rocket]
+git = "https://github.com/SergioBenitez/Rocket.git"
+branch = "master"
+features = ["tls", "secrets"]

@@ -6,11 +6,11 @@ use crate::models::{ApiGuild, ApiProfile};
 use crate::oauth::oauth_request;
 use rocket::get;
 use rocket::http::{CookieJar, Status};
-use std::time::Instant;
 
 #[get("/guilds")]
 pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
-    let token = jar.get("discord_token");
+    let token = jar.get_private("discord_token");
+    jar.get_private("discord_token").map(|crumb| format!("Token: {}", crumb.value()));
     return match token {
         Some(token) => match get_api_guilds(token.value().to_string(), &db).await {
             Some(guilds) => ApiResponse {
