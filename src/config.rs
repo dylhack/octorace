@@ -16,7 +16,7 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Config {
-        let location = env::var(ENV_VAR).unwrap_or_else(|_|DEFAULT_LOCATION.to_string());
+        let location = env::var(ENV_VAR).unwrap_or_else(|_| DEFAULT_LOCATION.to_string());
         match Config::retrieve() {
             Some(conf) => conf,
             None => {
@@ -49,7 +49,7 @@ impl Config {
         match File::open(&location) {
             Ok(mut file) => {
                 let mut contents = String::new();
-                if file.read_to_string(&mut contents).is_err(){
+                if file.read_to_string(&mut contents).is_err() {
                     return None;
                 };
 

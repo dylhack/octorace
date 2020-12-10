@@ -3,13 +3,13 @@ use crate::api::{json, ApiResponse};
 use crate::config::Config;
 use crate::db::guard::DbConn;
 use crate::db::pool::Pool;
-use crate::models::{ApiProfile};
+use crate::models::ApiProfile;
 use crate::oauth::oauth_request;
 use chrono::{Duration, Utc};
 use graphql_client::*;
-use reqwest::{Client};
+use reqwest::Client;
+use rocket::get;
 use rocket::http::{CookieJar, Status};
-use rocket::{get};
 
 #[derive(Debug)]
 pub struct UserJoined {
