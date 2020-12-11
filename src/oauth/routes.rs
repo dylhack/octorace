@@ -1,7 +1,6 @@
 use crate::api::models::{ApiUserConnection, DiscordUser};
 use crate::api::user::{get_contributions, make_new_user, UserJoined};
 use crate::config::Config;
-use crate::db;
 use crate::db::guard::DbConn;
 use crate::db::pool::Pool;
 use crate::oauth::{oauth_request, OauthClient};
@@ -11,7 +10,7 @@ use rocket::get;
 use rocket::http::{Cookie, CookieJar};
 use rocket::response::Redirect;
 use rocket::State;
-use time::{Duration, UtcOffset};
+use time::Duration;
 
 #[get("/")]
 pub fn oauth_main(client: State<OauthClient>) -> Redirect {
@@ -35,8 +34,6 @@ pub async fn oauth_callback(
     db: DbConn<'_>,
     config: State<'_, Config>,
 ) -> Option<Redirect> {
-    use time::OffsetDateTime;
-
     let code = AuthorizationCode::new(code);
     let token_res = client
         .exchange_code(code)
