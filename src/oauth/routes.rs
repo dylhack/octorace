@@ -1,5 +1,5 @@
 use crate::api::models::{ApiUserConnection, DiscordUser};
-use crate::api::user::{add_user_guilds, get_contributions, make_new_user, UserJoined};
+use crate::api::user::{get_contributions, make_new_user, UserJoined};
 use crate::config::Config;
 use crate::db;
 use crate::db::guard::DbConn;
@@ -76,7 +76,7 @@ pub async fn oauth_callback(
 
         Some(Redirect::to("/"))
     } else {
-        Some(Redirect::to(""))
+        Some(Redirect::to("/error"))
     };
 }
 
@@ -136,6 +136,4 @@ async fn create_user(token: String, pool: &Pool, config: &Config, me: DiscordUse
         )
         .await;
     }
-
-    add_user_guilds(token.clone(), pool, me.id.parse().unwrap()).await;
 }

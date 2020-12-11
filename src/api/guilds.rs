@@ -10,10 +10,8 @@ use rocket::http::{CookieJar, Status};
 #[get("/guilds")]
 pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
     let token = jar.get_private("discord_token");
-    jar.get_private("discord_token")
-        .map(|crumb| format!("Token: {}", crumb.value()));
     return match token {
-        Some(token) => match get_api_guilds(token.value().to_string(), &db).await {
+        Some(token) => match get_api_guilds(token.value().to_string(), &db, jar).await {
             Some(guilds) => ApiResponse {
                 json: json!(&guilds),
                 status: Status::Ok,
@@ -30,14 +28,26 @@ pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
     };
 }
 
-pub async fn get_api_guilds(token: String, pool: &Pool) -> Option<Vec<ApiGuild>> {
-    println!("Api guilds: {}", token.clone());
+pub async fn get_api_guilds(
+    token: String,
+    pool: &Pool,
+    jar: &CookieJar<'_>,
+) -> Option<Vec<ApiGuild>> {
     let discord_guilds: Vec<DiscordGuild> = oauth_request("users/@me/guilds", token.clone())
         .await
         .unwrap()
         .json()
         .await
         .unwrap();
+
+    let user_id: i64 = jar
+        .get_private("discord_id")
+        .unwrap()
+        .value()
+        .parse()
+        .unwrap();
+
+    add_user_guilds(pool, user_id, discord_guilds.clone()).await;
 
     let mut api_guilds: Vec<ApiGuild> = vec![];
     for guild in discord_guilds {
@@ -86,4 +96,20 @@ pub async fn get_profiles(guild_id: &i64, pool: &Pool) -> Vec<ApiProfile> {
     .fetch_all(pool)
     .await
     .unwrap()
+}
+
+pub async fn add_user_guilds(pool: &Pool, user_id: i64, guilds: Vec<DiscordGuild>) {
+    for guild in guilds {
+        sqlx::query!(
+            "\
+            INSERT INTO octorace.guilds (discord_id, guild_id) \
+            VALUES ($1, $2) \
+            ON CONFLICT DO NOTHING",
+            user_id,
+            guild.id.parse::<i64>().unwrap()
+        )
+        .execute(pool)
+        .await
+        .expect("Unable to insert");
+    }
 }

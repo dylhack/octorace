@@ -15,7 +15,7 @@ pub struct DiscordUser {
     pub(crate) discriminator: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct DiscordGuild {
     pub(crate) id: String,
     pub(crate) name: String,

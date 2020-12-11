@@ -141,26 +141,3 @@ pub async fn make_new_user(user: UserJoined, me: &DiscordUser, pool: &Pool) {
     .await
     .expect("Unable to insert");
 }
-
-pub async fn add_user_guilds(token: String, pool: &Pool, user_id: i64) {
-    let discord_guilds: Vec<DiscordGuild> = oauth_request("users/@me/guilds", token)
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-
-    for guild in discord_guilds {
-        sqlx::query!(
-            "\
-            INSERT INTO octorace.guilds (discord_id, guild_id) \
-            VALUES ($1, $2) \
-            ON CONFLICT DO NOTHING",
-            user_id,
-            guild.id.parse::<i64>().unwrap()
-        )
-        .execute(pool)
-        .await
-        .expect("Unable to insert");
-    }
-}
