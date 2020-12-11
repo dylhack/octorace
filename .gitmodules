@@ -1,3 +1,4 @@
 [submodule "web"]
 	path = web
-	url = git@github.com:dylhack/octorace.git
+	url = git@github.com:/dylhack/octorace-web
+
