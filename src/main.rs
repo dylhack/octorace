@@ -8,6 +8,7 @@ mod db;
 mod macros;
 mod models;
 mod oauth;
+mod tasks;
 
 use crate::api::guilds::*;
 use crate::api::user::*;
@@ -15,6 +16,7 @@ use crate::oauth::create_oauth_client;
 use crate::oauth::routes::*;
 
 use crate::config::Config;
+use crate::tasks::start_tasks;
 use rocket::response::NamedFile;
 use rocket::routes;
 use rocket_contrib::serve::StaticFiles;
@@ -36,6 +38,9 @@ async fn rocket() -> rocket::Rocket {
     }
 
     let oauth_client = create_oauth_client(config.clone());
+
+    let tasks = tokio::spawn(async move { start_tasks().await });
+    let _ = tasks.await;
 
     println!("Starting server..");
 
