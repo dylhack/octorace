@@ -31,6 +31,7 @@ pub async fn get_guilds(jar: &CookieJar<'_>, db: DbConn<'_>) -> ApiResponse {
 }
 
 pub async fn get_api_guilds(token: String, pool: &Pool) -> Option<Vec<ApiGuild>> {
+    println!("Api guilds: {}", token.clone());
     let discord_guilds: Vec<DiscordGuild> = oauth_request("users/@me/guilds", token.clone())
         .await
         .unwrap()

@@ -6,7 +6,6 @@ use oauth2::{
     AuthUrl, ClientId, ClientSecret, EmptyExtraTokenFields, RedirectUrl, StandardErrorResponse,
     StandardTokenResponse, TokenUrl,
 };
-use reqwest::header::AUTHORIZATION;
 use reqwest::Client;
 
 type OauthClient = oauth2::Client<
@@ -42,7 +41,7 @@ pub async fn oauth_request(url: &str, token: String) -> Option<reqwest::Response
     let client = Client::new();
     match client
         .get(format!("https://discordapp.com/api/{}", url).as_str())
-        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .bearer_auth(token)
         .send()
         .await
     {

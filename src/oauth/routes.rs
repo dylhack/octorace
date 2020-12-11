@@ -1,6 +1,7 @@
 use crate::api::models::{ApiUserConnection, DiscordUser};
 use crate::api::user::{add_user_guilds, get_contributions, make_new_user, UserJoined};
 use crate::config::Config;
+use crate::db;
 use crate::db::guard::DbConn;
 use crate::db::pool::Pool;
 use crate::oauth::{oauth_request, OauthClient};
@@ -10,6 +11,7 @@ use rocket::get;
 use rocket::http::{Cookie, CookieJar};
 use rocket::response::Redirect;
 use rocket::State;
+use time::{Duration, UtcOffset};
 
 #[get("/")]
 pub fn oauth_main(client: State<OauthClient>) -> Redirect {
@@ -33,6 +35,8 @@ pub async fn oauth_callback(
     db: DbConn<'_>,
     config: State<'_, Config>,
 ) -> Option<Redirect> {
+    use time::OffsetDateTime;
+
     let code = AuthorizationCode::new(code);
     let token_res = client
         .exchange_code(code)
@@ -45,16 +49,21 @@ pub async fn oauth_callback(
         let cookie = Cookie::build("discord_token", discord_token.secret().clone())
             .path("/")
             .http_only(false)
+            .max_age(Duration::hours(12))
             .finish();
 
         jar.add_private(cookie);
 
-        let me: DiscordUser = oauth_request("users/@me", token.access_token().secret().clone())
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+        let me: DiscordUser =
+            match oauth_request("users/@me", token.access_token().secret().clone())
+                .await
+                .unwrap()
+                .json()
+                .await
+            {
+                Ok(me) => me,
+                Err(_) => return Some(Redirect::to("/error")),
+            };
 
         let user_id_cookie = Cookie::build("discord_id", me.id.clone())
             .path("/")
@@ -67,7 +76,6 @@ pub async fn oauth_callback(
 
         Some(Redirect::to("/"))
     } else {
-        "Something went wrong..".to_string();
         Some(Redirect::to(""))
     };
 }
